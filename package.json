@@ -1,0 +1,30 @@
+{
+  "name": "bluesky",
+  "version": "1.0.0",
+  "description": "Javascript BlueSky client",
+  "private": true,
+  "exports": {
+    "default": "./dist/bluesky.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "node build.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jooste/bluesky-js.git"
+  },
+  "keywords": [],
+  "author": "Joost Ellerbroek",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/jooste/bluesky-js/issues"
+  },
+  "homepage": "https://github.com/jooste/bluesky-js#readme",
+  "devDependencies": {
+    "esbuild": "^0.27.2"
+  },
+  "dependencies": {
+    "@msgpack/msgpack": "^3.1.3"
+  }
+}

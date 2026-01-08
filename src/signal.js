@@ -1,9 +1,9 @@
 class SignalEvent extends Event {
-    constructor(type, data, sender_id = null, to_group = '*') {
+    constructor(type, data, senderId = null, toGroup = '*') {
         super(type);
         this.data = data;
-        this.sender_id = sender_id;
-        this.to_group = to_group;
+        this.senderId = senderId;
+        this.toGroup = toGroup;
     }
 };
 
@@ -24,8 +24,8 @@ class Signal {
         this._emitter.removeEventListener(topic, callback);
     }
 
-    emit(topic, data, sender_id = null, to_group = '*') {
-        const event = new SignalEvent(topic, data, sender_id, to_group);
+    emit(topic, data, senderId = null, toGroup = '*') {
+        const event = new SignalEvent(topic, data, senderId, toGroup);
         this._emitter.dispatchEvent(event);
     }
 };

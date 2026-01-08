@@ -22,11 +22,11 @@ class SharedState {
 
     constructor() {
         this.defaults = {};
-        this.remotes = new Map();  // client_id -> {topic: Store}
+        this.remotes = new Map();  // clientId -> {topic: Store}
     }
 
-    reset(remote_id = null) {
-        this.remotes[remote_id || act_id] = structuredClone(this.defaults);
+    reset(remoteId = null) {
+        this.remotes[remoteId || actId] = structuredClone(this.defaults);
 
         // signalling logic
     }

@@ -1,6 +1,5 @@
 import client from './client.js'
-import ss, { ActionType } from './sharedstate.js'
-import { Signal  } from './signal.js'
-import subscribe from './subscriber.js'
+import ss from './sharedstate.js'
+import { SubscriptionEvent, ActionType  } from './common.js'
 
-export { client, ss, ActionType, Signal, subscribe }
+export { client, ss, ActionType, SubscriptionEvent }

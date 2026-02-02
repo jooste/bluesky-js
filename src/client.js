@@ -1,7 +1,6 @@
 import ss, { ActionType } from './sharedstate.js';
 import { SubscriptionEvent, SubscriptionType, Subscription } from './common.js';
-import {encode, decode } from '@msgpack/msgpack';
-
+import { encode, decode, ExtensionCodec } from "@msgpack/msgpack";
 
 class Client extends EventTarget {
     constructor() {
@@ -15,10 +14,63 @@ class Client extends EventTarget {
         this.subscriptions = new Map();
 
         // Connect join and leave signals
-        this.addEventListener('JOINED', (event) => {
-            this.simnodes.push(event.data);
-            console.log(`BlueSky client received JOIN event, nodes = ${this.simnodes}`)
+        this.addEventListener('NODE-ADDED', (event) => {
+            // Filter for simulation nodes, and add to client and sharedstate lists
+            const simnodes = event.data.filter((nodeId) => nodeId.startsWith('S'));
+            this.simnodes.push(...simnodes);
+            for (const nodeId of simnodes) {
+                ss.reset(nodeId);
+            }
+            // If we don't have an active node yet set it to the first node
+            if (this.actId === null && this.simnodes.length > 0) {
+                this.actId = this.simnodes[0];
+                ss.setActNode(this.actId);
+                console.log('Setting active node ID to', this.actId);
+            }
+
+            // Request full state sync from this client
+            const topics = this.subscriptions.values().filter(t =>
+                t.subscriptionType === SubscriptionType.SharedState ||
+                t.subscriptionType === SubscriptionType.Unknown).map(t => t.topic);
+
+            for (const nodeId of simnodes) {
+                this.send('REQUEST', topics, nodeId);
+            }
         });
+
+        this.addEventListener('ACTNODE-CHANGED', (event) => {
+            console.log('Setting active node ID to', this.actId);
+            const actId = event.data;
+            this.actId = actId;
+            ss.setActNode(actId);
+        });
+
+        this.extensionCodec = new ExtensionCodec();
+
+        // Set<T>
+        const NDARRAY_EXT_TYPE = 42 // Any in 0-127
+        this.extensionCodec.register({
+            type: NDARRAY_EXT_TYPE,
+            decode: (data) => {
+                // We have an array with: [dtype, shape, bytes]
+                const decoded = decode(data, { extensionCodec: this.extensionCodec });
+                const ua = Uint8Array.from(decoded[2]);
+                switch (decoded[0]) {
+                    case '<f8':
+                        // NumPy double array
+                        const fa = new Float64Array(ua.buffer);
+                        const aa = Array.from(fa);
+                        return aa;
+                    case '<i8':
+                        // NumPy long int array
+                        const ia = new BigInt64Array(ua.buffer);
+                        return Array.from(ia);
+                    case '|b1':
+                        return Array.from(ua).map((val) => val == 1);
+                }
+            },
+        });
+
     };
 
     setClientId(clientId) {
@@ -49,9 +101,8 @@ class Client extends EventTarget {
         this.ws.addEventListener('message', (event) => {
             try {
                 // expect: [toGroup, topic, senderId, data]
-                const decoded = decode(new Uint8Array(event.data));
+                const decoded = decode(new Uint8Array(event.data), { extensionCodec: this.extensionCodec });
                 const [toGroup, topic, senderId, data] = decoded;
-                console.log(`Incoming WS message: ${topic}, ${data}, ${senderId}, ${toGroup}`)
                 this.dispatchEvent(
                     new SubscriptionEvent(topic, data, senderId, toGroup)
                 );
@@ -72,27 +123,6 @@ class Client extends EventTarget {
         this.subscribe('reset', (event) => {
             const remoteId = event.senderId;
             ss.reset(remoteId);
-        });
-
-        this.subscribe('actnode-changed', (event) => {
-            const actId = event.data;
-            ss.setActNode(actId);
-        });
-
-        this.subscribe('node-added', (event) => {
-            const remoteIds = event.data;
-            for (const remoteId of remoteIds) {
-                ss.reset(remoteId);
-            }
-
-            // Request full state sync from this client
-            const topics = this.subscriptions.values().filter(t =>
-                t.subscriptionType === SubscriptionType.SharedState ||
-                t.subscriptionType === SubscriptionType.Unknown).map(t => t.topic);
-
-            for (const remoteId of remoteIds) {
-                this.send('REQUEST', topics, toGroup = remoteId);
-            }
         });
     }
 
@@ -118,12 +148,12 @@ class Client extends EventTarget {
         const utopic = topic.toUpperCase();
         let sub = this.subscriptions.get(utopic);
         if (sub === undefined) {
-            sub = new Subscription(topic, actonly);
+            sub = new Subscription(utopic, actonly);
             this.subscriptions.set(utopic, sub);
 
             // Assume we don't know the message type yet. 
             // Connect detect type on first message to find out
-            this.addEventListener(utopic, this._detectType.bind(this), true);
+            this.addEventListener(utopic, this._detectType.bind(this), {once: true});
         }
 
         // Connect passed function to appropriate event

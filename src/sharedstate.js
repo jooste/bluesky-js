@@ -11,7 +11,7 @@ class SharedState extends EventTarget {
 
     reset(remoteId) {
         const stores = structuredClone(this.defaults);
-        this.remotes[remoteId] = stores;
+        this.remotes.set(remoteId, stores);
 
         // communicate this update if it belongs to the active node
         if (remoteId == this.actId) {
@@ -24,10 +24,15 @@ class SharedState extends EventTarget {
     }
 
     setActNode(actId) {
+        let remote = this.remotes.get(actId);
+        if (remote === undefined) {
+            remote = structuredClone(this.defaults);
+            this.remotes.set(actId, remote);
+        }
         this.actId = actId;
-        for (const [topic, store] of this.remotes[remoteId].items()) {
+        for (const [topic, store] of Object.entries(remote)) {
             this.dispatchEvent(
-                new SubscriptionEvent(topic, store, remoteId, "")
+                new SubscriptionEvent(topic, store, actId, "")
             );
         }
     }
@@ -50,7 +55,13 @@ class SharedState extends EventTarget {
     onSharedStateReceived(event) {
         // TODO: implement
         const action = event.data[0];
-        const store = this.remotes[event.senderId];
+        let store = this.remotes.get(event.senderId);
+        if (store === undefined) {
+            store = structuredClone(this.defaults);
+            this.remotes.set(event.senderId, store);
+            // console.error(`SharedState store not found for node with ID ${event.senderId}`);
+            return;
+        }
         switch(action) {
             case ActionType.Update:
                 // Recursively merge the new data with the current store
@@ -83,7 +94,7 @@ class SharedState extends EventTarget {
                         if (typeof value === 'number' && Number.isInteger(value)) {
                             idx = value;
                         } else {
-                            console.log(`Expected integer index for delete ${key} in topic ${event.type}`);
+                            console.error(`Expected integer index for delete ${key} in topic ${event.type}`);
                             break;
                         }
 
@@ -121,7 +132,6 @@ class SharedState extends EventTarget {
             case ActionType.ActChange:
                 return this.setActNode(event.senderId);
         }
-
         // Inform subscribers of state update
         if (event.senderId == this.actId) {
             this.dispatchEvent(

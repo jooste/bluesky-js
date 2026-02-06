@@ -131,13 +131,13 @@ class Client extends EventTarget {
     }
 
     // publish/send to server: encodes as [toGroup, topic, senderId, data]
-    send(topic, data, toGroup = '*') {
+    send(topic, data, toGroup = '') {
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
             console.warn('WebSocket not open, cannot send');
             return;
         }
         try {
-            const payload = encode([toGroup, topic.toUpperCase(), data]);
+            const payload = encode([toGroup || this.actId, topic.toUpperCase(), data]);
             this.ws.send(payload);
         } catch (e) {
             console.error('Error encoding/sending message', e);

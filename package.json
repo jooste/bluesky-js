@@ -1,7 +1,7 @@
 {
   "name": "bluesky",
   "version": "1.0.0",
-  "description": "Javascript BlueSky client",
+  "description": "Javascript client for the BlueSky open-source ATM simulator",
   "private": true,
   "exports": {
     "default": "./dist/bluesky.js"

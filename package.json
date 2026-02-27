@@ -1,5 +1,5 @@
 {
-  "name": "bluesky",
+  "name": "@tudelft/bluesky",
   "version": "1.0.0",
   "description": "Javascript client for the BlueSky open-source ATM simulator",
   "private": true,

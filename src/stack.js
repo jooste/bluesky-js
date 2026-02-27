@@ -32,9 +32,9 @@ class Stack {
         client.send('STACK', cmdline || this.curCmd, targetId);
     }
 
-    command(name, func, { brief = '', aliases = [], annotations = '', help = '' }) {
+    command(name, func, options = { brief: '', aliases: [], annotations: '', help: '' }) {
         const uname = name.toUpperCase();
-        const cmdobj = Command(uname, func, { brief: brief, aliases: aliases, annotations: annotations, help: help });
+        const cmdobj = Command(uname, func, options);
         this.commands.set(uname, cmdobj);
         return cmdobj;
     }
@@ -42,13 +42,13 @@ class Stack {
 
 
 class Command {
-    constructor(name, func, {brief='', aliases=[], annotations='', help=''}) {
+    constructor(name, func, options={brief:'', aliases:[], annotations:'', help:''}) {
         this.callback = func;
         this.name = name;
-        this.brief = brief;
-        this.aliases = aliases;
-        this.annotations = annotations;
-        this.help = help;
+        this.brief = options.brief | '';
+        this.aliases = options.aliases | [];
+        this.annotations = options.annotations | '';
+        this.help = options.help | '';
     }
 
     call(...args) {

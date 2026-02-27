@@ -5,7 +5,6 @@ import { encode, decode, ExtensionCodec } from "@msgpack/msgpack";
 class Client extends EventTarget {
     constructor() {
         super();
-        this.clientId = '';
         this.ws = null;
         this.actId = null;
         // List of sim node ids
@@ -23,9 +22,7 @@ class Client extends EventTarget {
             }
             // If we don't have an active node yet set it to the first node
             if (this.actId === null && this.simnodes.length > 0) {
-                this.actId = this.simnodes[0];
-                ss.setActNode(this.actId);
-                console.log('Setting active node ID to', this.actId);
+                this.setActNode(this.simnodes[0]);
             }
 
             // Request full state sync from this client
@@ -39,10 +36,8 @@ class Client extends EventTarget {
         });
 
         this.addEventListener('ACTNODE-CHANGED', (event) => {
-            console.log('Setting active node ID to', this.actId);
             const actId = event.data;
-            this.actId = actId;
-            ss.setActNode(actId);
+            this.setActNode(actId);
         });
 
         this.extensionCodec = new ExtensionCodec();
@@ -73,21 +68,23 @@ class Client extends EventTarget {
 
     };
 
-    setClientId(clientId) {
-        this.clientId = clientId;
-    }
-
-    connect(hostname = '127.0.0.1', port = 5000, clientId = null) {
+    connect(hostname = '127.0.0.1', options = {port: 8080, clientId: null}) {
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             console.warn('WebSocket already connected');
             return;
         }
-        this.clientId = clientId || this.clientId;
-        this.ws = new WebSocket(`ws://${hostname}:${port}/ws/${this.clientId}`);
+        if (options.clientId) {
+            this.ws = new WebSocket(`ws://${hostname}:${options.port}/ws?client_id=${options.clientId}`);
+            console.info(`Requesting websocket connection with client ID ${options.clientId}`);
+        } else {
+            this.ws = new WebSocket(`ws://${hostname}:${options.port}/ws`);
+            console.info('Requesting websocket connection, server will specify client ID');
+        }
+        
         this.ws.binaryType = "arraybuffer";
 
         this.ws.addEventListener('open', (event) => {
-            console.log('WebSocket connection opened');
+            console.info('WebSocket connection opened');
             // Send all pending subscriptions
             for (const sub of this.subscriptions.values()) {
                 while (sub.requested.length) {
@@ -116,7 +113,7 @@ class Client extends EventTarget {
         });
 
         this.ws.addEventListener('close', () => {
-            console.log('WebSocket connection closed');
+            console.info('WebSocket connection closed');
         });
 
         // Connect internal client handlers
@@ -124,6 +121,13 @@ class Client extends EventTarget {
             const remoteId = event.senderId;
             ss.reset(remoteId);
         });
+    }
+
+    setActNode(nodeId) {
+        this.actId = nodeId;
+        ss.setActNode(this.actId);
+        this.send('ACTNODE-CHANGED', {node_id: this.actId})
+        console.info('Setting active node ID to', this.actId);
     }
 
     isConnected() {

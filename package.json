@@ -12,15 +12,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jooste/bluesky-js.git"
+    "url": "git+https://github.com/TUDelft-CNS-ATM/bluesky-js.git"
   },
   "keywords": [],
   "author": "Joost Ellerbroek",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/jooste/bluesky-js/issues"
+    "url": "https://github.com/TUDelft-CNS-ATM/bluesky-js/issues"
   },
-  "homepage": "https://github.com/jooste/bluesky-js#readme",
+  "homepage": "https://github.com/TUDelft-CNS-ATM/bluesky-js#readme",
   "devDependencies": {
     "esbuild": "^0.27.2"
   },

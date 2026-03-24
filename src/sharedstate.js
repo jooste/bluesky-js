@@ -17,7 +17,7 @@ class SharedState extends EventTarget {
         if (remoteId == this.actId) {
             for (const [topic, store] of stores.items()) {
                 this.dispatchEvent(
-                    new SubscriptionEvent(topic, store, remoteId, "")
+                    new SubscriptionEvent(topic, store, remoteId, this.actId, "")
                 );
             }
         }

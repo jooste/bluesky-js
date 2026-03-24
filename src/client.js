@@ -65,19 +65,18 @@ class Client extends EventTarget {
                 }
             },
         });
-
     };
 
-    connect(hostname = '127.0.0.1', options = {port: 8080, clientId: null}) {
+    connect(hostname = '127.0.0.1', {port = 8080, clientId = null} = {}) {
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             console.warn('WebSocket already connected');
             return;
         }
-        if (options.clientId) {
-            this.ws = new WebSocket(`ws://${hostname}:${options.port}/ws?client_id=${options.clientId}`);
-            console.info(`Requesting websocket connection with client ID ${options.clientId}`);
+        if (clientId) {
+            this.ws = new WebSocket(`ws://${hostname}:${port}/ws?client_id=${clientId}`);
+            console.info(`Requesting websocket connection with client ID ${clientId}`);
         } else {
-            this.ws = new WebSocket(`ws://${hostname}:${options.port}/ws`);
+            this.ws = new WebSocket(`ws://${hostname}:${port}/ws`);
             console.info('Requesting websocket connection, server will specify client ID');
         }
         
@@ -89,7 +88,7 @@ class Client extends EventTarget {
             for (const sub of this.subscriptions.values()) {
                 while (sub.requested.length) {
                     let [fromGroup, toGroup] = sub.requested.shift();
-                    sub.subs.add(`${fromGroup}|${toGroup}`);
+                    sub.masks.add(`${fromGroup}|${toGroup}`);
                     this.send('SUBSCRIBE', { topic: sub.topic, from_group: fromGroup, to_group: toGroup, actonly: sub.actonly });
                 }
             }
@@ -101,7 +100,7 @@ class Client extends EventTarget {
                 const decoded = decode(new Uint8Array(event.data), { extensionCodec: this.extensionCodec });
                 const [toGroup, topic, senderId, data] = decoded;
                 this.dispatchEvent(
-                    new SubscriptionEvent(topic, data, senderId, toGroup)
+                    new SubscriptionEvent(topic, data, senderId, this.actId, toGroup)
                 );
             } catch (e) {
                 console.error('Error parsing WebSocket message:', e);
@@ -148,7 +147,7 @@ class Client extends EventTarget {
         }
     }
 
-    subscribe(topic, func, broadcast = true, raw = false, actonly = null, fromGroup = '', toGroup = '') {
+    subscribe(topic, func=null, {broadcast = true, raw = false, actonly = null, fromGroup = '', toGroup = ''} = {}) {
         const utopic = topic.toUpperCase();
         let sub = this.subscriptions.get(utopic);
         if (sub === undefined) {
@@ -160,18 +159,22 @@ class Client extends EventTarget {
             this.addEventListener(utopic, this._detectType.bind(this), {once: true});
         }
 
-        // Connect passed function to appropriate event
+        if (!func) return;
+
+        // Connect passed function to appropriate event. Wrap if needed to filter act only messages
+        const callback = (actonly !== false) ? (e) => { if (e.senderId === e.actId) func(e) } : func;
+
         if (raw || sub.subscriptionType === SubscriptionType.Regular) {
-            this.addEventListener(utopic, func);
-        } else if (this.subscriptionType === SubscriptionType.Unknown) {
+            this.addEventListener(utopic, callback);
+        } else if (sub.subscriptionType === SubscriptionType.Unknown) {
             // Defer connection of subscriber function to _detectType
-            this.deferredSubs.push(func);
+            sub.deferredSubs.push(callback);
         } else { // SharedState
-            ss.addEventListener(utopic, func);
+            ss.addEventListener(utopic, callback);
         }
 
         // Update settings if needed
-        if (actonly !== null) sub.actonly = actonly;
+        if (actonly !== null) sub.actonly = actonly && sub.actonly;// TODO: update only actonly to server
         if (broadcast) {
             if (sub.subs.has(`${fromGroup}|${toGroup}`)) return;
             if (this.isConnected()) {
@@ -181,15 +184,28 @@ class Client extends EventTarget {
                 sub.requested.push([fromGroup, toGroup]);
             }
         }
-
-        return sub;
+        // subscribe function returns disconnect function for callback
+        return () => {
+            // Disconnect callback from appropriate EventTarget
+            if (sub.subscriptionType === SubscriptionType.Unknown) {
+                // Remove callback from deferred list
+                const idx = sub.deferredSubs.indexOf(callback);
+                if (idx > -1) sub.deferredSubs.splice(idx, 1);
+            } else if (sub.subscriptionType === SubscriptionType.Regular || raw) {
+                // Callback is connected to regular/raw: remove from client
+                this.removeEventListener(utopic, callback);
+            } else {
+                // Callback is connected to sharedstate, remove there
+                ss.removeEventListener(utopic, callback);
+            }
+        }
     }
 
-    unsubscribe(topic, fromGroup = '', toGroup = '') {
+    unsubscribe(topic, {fromGroup = '', toGroup = ''} = {}) {
         const utopic = topic.toUpperCase();
         const sub = this.subscriptions.get(utopic);
-        if (!sub.subs.has(`${fromGroup}|${toGroup}`)) return;
-        sub.subs.delete(`${fromGroup}|${toGroup}`);
+        if (!sub.masks.has(`${fromGroup}|${toGroup}`)) return;
+        sub.masks.delete(`${fromGroup}|${toGroup}`);
         if (this.isConnected()) {
             this.send('UNSUBSCRIBE', { topic: utopic, from_group: fromGroup, to_group: toGroup });
         }

@@ -1,9 +1,10 @@
 export class SubscriptionEvent extends Event {
-    constructor(type, data, senderId = null, toGroup = '*') {
+    constructor(type, data, senderId = null, actId = null, toGroup = '*') {
         super(type);
         this.data = data;
         this.senderId = senderId;
         this.toGroup = toGroup;
+        this.actId = actId;
     }
 };
 
@@ -15,10 +16,9 @@ export class SubscriptionType {
 
 
 export class Subscription {
-    constructor(topic, client) {
+    constructor(topic) {
         this.topic = topic;
-        this.client = client
-        this.subs = new Set();
+        this.masks = new Set();
         this.requested = new Array();
         this.actonly = false;
         this.deferredSubs = new Array();

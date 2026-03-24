@@ -1,6 +1,6 @@
 {
   "name": "@tudelft/bluesky",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Javascript client for the BlueSky open-source ATM simulator",
   "exports": {
     "import": "./src/index.js",

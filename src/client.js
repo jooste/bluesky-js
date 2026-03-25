@@ -176,9 +176,9 @@ class Client extends EventTarget {
         // Update settings if needed
         if (actonly !== null) sub.actonly = actonly && sub.actonly;// TODO: update only actonly to server
         if (broadcast) {
-            if (sub.subs.has(`${fromGroup}|${toGroup}`)) return;
+            if (sub.masks.has(`${fromGroup}|${toGroup}`)) return;
             if (this.isConnected()) {
-                sub.subs.add(`${fromGroup}|${toGroup}`);
+                sub.masks.add(`${fromGroup}|${toGroup}`);
                 this.send('SUBSCRIBE', { topic: sub.topic, from_group: fromGroup, to_group: toGroup, actonly: sub.actonly });
             } else {
                 sub.requested.push([fromGroup, toGroup]);

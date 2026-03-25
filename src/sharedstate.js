@@ -13,13 +13,11 @@ class SharedState extends EventTarget {
         const stores = structuredClone(this.defaults);
         this.remotes.set(remoteId, stores);
 
-        // communicate this update if it belongs to the active node
-        if (remoteId == this.actId) {
-            for (const [topic, store] of stores.items()) {
-                this.dispatchEvent(
-                    new SubscriptionEvent(topic, store, remoteId, this.actId, "")
-                );
-            }
+        // communicate this update to subscribers
+        for (const [topic, store] of stores.items()) {
+            this.dispatchEvent(
+                new SubscriptionEvent(topic, store, remoteId, this.actId, "")
+            );
         }
     }
 
@@ -133,11 +131,9 @@ class SharedState extends EventTarget {
                 return this.setActNode(event.senderId);
         }
         // Inform subscribers of state update
-        if (event.senderId == this.actId) {
-            this.dispatchEvent(
-                new SubscriptionEvent(event.type, store, event.senderId, event.toGroup)
-            );
-        }
+        this.dispatchEvent(
+            new SubscriptionEvent(event.type, store, event.senderId, event.actId, event.toGroup)
+        );
     }
 }
 

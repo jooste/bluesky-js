@@ -14,11 +14,24 @@ class SharedState extends EventTarget {
         this.remotes.set(remoteId, stores);
 
         // communicate this update to subscribers
-        for (const [topic, store] of stores.items()) {
+        for (const [topic, store] of Object.entries(stores)) {
             this.dispatchEvent(
                 new SubscriptionEvent(topic, store, remoteId, this.actId, "")
             );
         }
+    }
+
+    get(remoteId=null, groupId=null) {
+        let remote = this.remotes.get(remoteId ? remoteId : this.actId);
+        if (remote === undefined) {
+            remote = structuredClone(this.defaults);
+            this.remotes.set(remoteId, remote);
+        }
+        if (groupId) {
+            if (!remote.hasOwnProperty(groupId)) this.addTopic(groupId);
+            return remote[groupId.toLowerCase()];
+        }
+        return remote;
     }
 
     setActNode(actId) {
@@ -35,7 +48,7 @@ class SharedState extends EventTarget {
         }
     }
 
-    addtopic(topic) {
+    addTopic(topic) {
         const t = topic.toLowerCase();
         // ensure defaults and existing remotes have this group
         if (!(t in this.defaults)) {
@@ -51,15 +64,9 @@ class SharedState extends EventTarget {
     }
 
     onSharedStateReceived(event) {
-        // TODO: implement
+        // Action type is the first element of data. Contents are the second element
         const action = event.data[0];
-        let store = this.remotes.get(event.senderId);
-        if (store === undefined) {
-            store = structuredClone(this.defaults);
-            this.remotes.set(event.senderId, store);
-            // console.error(`SharedState store not found for node with ID ${event.senderId}`);
-            return;
-        }
+        let store = this.get(event.senderId, event.type.toLowerCase());
         switch(action) {
             case ActionType.Update:
                 // Recursively merge the new data with the current store

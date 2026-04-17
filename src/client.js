@@ -219,7 +219,7 @@ class Client extends EventTarget {
         }
         if (ActionType.isaction(event.data[0])) {
             sub.subscriptionType = SubscriptionType.SharedState;
-            ss.addtopic(sub.topic);
+            ss.addTopic(sub.topic);
             // Connect collected callbacks to sharedstate signal
             while (sub.deferredSubs.length) ss.addEventListener(sub.topic, sub.deferredSubs.shift());
 
